@@ -194,5 +194,17 @@ O build nao mostrou erros nos arquivos de interface, CSR, algoritmos, main, test
 
 No grafo W1 real, uma consulta a partir do vertice 10 detectou ciclo negativo alcancavel e nao apresentou distancia minima finita. A execucao completa por script, if realizada, preservara esse resultado no resultados_parte3.txt.
 
+CORRECOES DA AUDITORIA
+- A consulta 10/20/30 -> 100 usa uma unica execucao de Bellman-Ford no grafo transposto a partir do vertice 100.
+- Os benchmarks medem uma fonte unica 10 vezes, o Floyd do subgrafo 10 vezes e indicam o custo teórico ou limite do BF todos os pares.
+- O Floyd completo foi substituido nos estudos de caso pelo Floyd induzido pelos vertices 10,20,30,40,50, conforme os pares pedidos.
+- BFS e DFS direcionadas foram adicionadas e testadas para grafos direcionados.
+- Bellman-Ford fonte unica mede uma origem em 10 rodadas. Para grafo com V vertices, BF todos os pares e estimado por V * tempo-fonte apenas como estimativa, pois sua execucao completa pode ser inviavel.
+- Floyd-Warshall mede apenas os pares formados por 10,20,30,40,50, como exige o Item 2. A matriz completa nao e criada automaticamente.
+- A matriz Floyd usa float para distancias e int para next, reduzindo memoria em relacao a distancias double.
+- A detecção de ciclo negativo no BF por fila usa a cadeia de predecessores em vez de aguardar V re-insercoes.
+- O teste direcionado confirma transposto, Floyd subgrafo, BFS e DFS; CTest passou apos estas correcoes.
+- W1 confirmou ciclo negativo. W2 e W3 tiveram distancias completas geradas. W4 foi interrompido antes de conclusao por tempo pratico; W5 nao foi executado nesta rodada.
+
 RESUMO
 A implementacao contempla representacao direcionada, duas variantes de Bellman-Ford, Floyd-Warshall achatado, ciclo negativo e caminhos reconstruidos. As partes de pesquisa exata dos algoritmos foram implementadas. Os limites altos em BF-todos-os-pares e Floyd foram inseridos para impedir alocacoes e execucoes inviaveis em uma maquina pessoal; a ausencia de medida em grafos grandes deve ser registrada como limite pratico no relatorio, nao como ausencia dos algoritmos.

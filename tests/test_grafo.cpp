@@ -132,6 +132,35 @@ void testDirecaoBellmanFordEFloyd() {
     std::cout << "[PASS] Teste de grafos direcionados, Bellman-Ford e Floyd-Warshall\n";
 }
 
+void testTranspostoEFloydSubgrafo() {
+    std::vector<std::tuple<int, int, float>> edges = {
+        {1, 2, 1.0f},
+        {2, 3, 2.0f},
+        {1, 3, 9.0f}
+    };
+    CSRGraph graph(3, edges, true);
+    CSRGraph transposed = graph.transposed();
+
+    auto fromTarget = bellmanFordQueue(transposed, 3);
+    assert(std::abs(fromTarget.dist[1] - 3.0) < 1e-5);
+    assert(std::abs(fromTarget.dist[2] - 2.0) < 1e-5);
+
+    auto fw = floydWarshall(graph, {1, 2, 3});
+    assert(std::abs(fw.dist[1 * 4 + 3] - 3.0) < 1e-5);
+
+    auto bfsResult = bfs(graph, 1);
+    assert(bfsResult.distance[1] == 0);
+    assert(bfsResult.distance[2] == 1);
+    assert(bfsResult.distance[3] == 1);
+
+    auto dfsResult = dfs(graph, 1);
+    assert(dfsResult.discovery[1] == 1);
+    assert(dfsResult.discovery[2] > 0);
+    assert(dfsResult.discovery[3] > dfsResult.discovery[2]);
+
+    std::cout << "[PASS] Teste de transposto, Floyd por subgrafo, BFS e DFS direcionados\n";
+}
+
 void testCicloNegativo() {
     std::vector<std::tuple<int, int, float>> edges = {
         {1, 2, 1.0f},
@@ -199,6 +228,7 @@ int main() {
     testParte2PesoNegativo();
     testParte2DijkstraVetorVsHeap();
     testDirecaoBellmanFordEFloyd();
+    testTranspostoEFloydSubgrafo();
     testCicloNegativo();
     testDijkstraComVerticeInalcancavel();
     testLeituraCSRDoArquivo();

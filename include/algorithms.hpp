@@ -29,9 +29,20 @@ struct BellmanFordResult {
 
 struct FloydWarshallResult {
     int numVertices = 0;
-    std::vector<double> dist;
+    std::vector<float> dist;
     std::vector<int> next;
     bool hasNegativeCycle = false;
+};
+
+struct BreadthSearchResult {
+    std::vector<int> parent;
+    std::vector<int> distance;
+};
+
+struct DepthSearchResult {
+    std::vector<int> parent;
+    std::vector<int> discovery;
+    std::vector<int> finish;
 };
 
 /**
@@ -68,5 +79,10 @@ std::vector<int> reconstructPath(const ShortestPathResult& res, int source, int 
 BellmanFordResult bellmanFord(const Graph& g, int source);
 BellmanFordResult bellmanFordQueue(const Graph& g, int source);
 FloydWarshallResult floydWarshall(const Graph& g);
+FloydWarshallResult floydWarshall(const Graph& g, const std::vector<int>& vertices);
+BreadthSearchResult bfs(const Graph& g, int source);
+DepthSearchResult dfs(const Graph& g, int source);
+BreadthSearchResult bfs(const Graph& g, int source);
+DepthSearchResult dfs(const Graph& g, int source);
 std::vector<int> reconstructPath(const BellmanFordResult& res, int source, int target);
 std::vector<int> reconstructPath(const FloydWarshallResult& res, int source, int target);

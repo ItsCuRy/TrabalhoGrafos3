@@ -71,4 +71,7 @@ public:
     const float* weightsBegin(int u) const {
         return weights_.empty() ? nullptr : &weights_[offsets_[u]];
     }
+
+    /// Retorna uma copia com todas as arestas invertidas. Util para caminhos todos-para-um.
+    CSRGraph transposed() const;
 };

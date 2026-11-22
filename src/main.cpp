@@ -281,13 +281,14 @@ void runPart3Study(const std::string& filename) {
         std::cout << "Vertices (V): " << n << " | Arestas (E): " << graph.numEdges()
                   << " | Pesos negativos: " << (graph.hasNegativeWeight() ? "sim" : "nao") << "\n";
 
-        std::cout << "\n[2/4] Bellman-Ford: vertices 10, 20 e 30 ate 100\n";
+        std::cout << "\n[2/4] Bellman-Ford todos-para-um: vertices 10,20,30 ate 100\n";
+        CSRGraph transposed = graph.transposed();
+        BellmanFordResult bfToTarget = bellmanFordQueue(transposed, 100);
         for (int source : {10, 20, 30}) {
-            BellmanFordResult bf = bellmanFordQueue(graph, source);
-            if (bf.hasNegativeCycle) {
+            if (bfToTarget.hasNegativeCycle) {
                 std::cout << source << " -> 100: ciclo negativo alcancavel\n";
             } else {
-                double distance = bf.dist[100];
+                double distance = bfToTarget.dist[source];
                 std::cout << source << " -> 100: "
                           << (std::isinf(distance) ? "Inalcancavel" : std::to_string(distance))
                           << "\n";
@@ -296,35 +297,42 @@ void runPart3Study(const std::string& filename) {
 
         std::cout << "\n[3/4] Floyd-Warshall: pares entre {10,20,30,40,50}\n";
         const std::vector<int> targets = {10, 20, 30, 40, 50};
-        constexpr size_t floydNodeLimit = 1000;
-        if (n > static_cast<int>(floydNodeLimit)) {
-            std::cout << "Floyd-Warshall nao executado: " << n
-                      << " vertices excedem o limite viavel de " << floydNodeLimit
-                      << " para os estudos desta maquina.\n";
-        } else {
-            FloydWarshallResult fw = floydWarshall(graph);
-            if (fw.hasNegativeCycle) {
-                std::cout << "Ciclo negativo alcancavel detectado.\n";
-            }
-            for (int source : targets) {
-                for (int target : targets) {
-                    if (source == target) continue;
-                    size_t pos = static_cast<size_t>(source) * (n + 1) + target;
-                    double distance = fw.dist[pos];
-                    std::cout << source << " -> " << target << ": "
-                              << (std::isinf(distance) ? "Inalcancavel" : std::to_string(distance))
-                              << "\n";
-                }
+        FloydWarshallResult fw = floydWarshall(graph, targets);
+        if (fw.hasNegativeCycle) {
+            std::cout << "Ciclo negativo alcancavel detectado no subgrafo solicitado.\n";
+        }
+        for (int i = 1; i <= 5; ++i) {
+            for (int j = 1; j <= 5; ++j) {
+                if (i == j) continue;
+                size_t pos = static_cast<size_t>(i) * 6 + j;
+                double distance = fw.dist[pos];
+                std::cout << targets[i - 1] << " -> " << targets[j - 1] << ": "
+                          << (std::isinf(distance) ? "Inalcancavel" : std::to_string(distance))
+                          << "\n";
             }
         }
 
         std::cout << "\n[4/4] Benchmark medio de 10 rodadas\n";
         constexpr int rounds = 10;
 
-        double bfSeconds = -1.0;
-        constexpr int bfNodeLimit = 1000;
-        auto bfStart = std::chrono::high_resolution_clock::now();
-        if (n <= bfNodeLimit) {
+        double bfSourcePerRound = 0.0;
+        if (bfToTarget.hasNegativeCycle) {
+            std::cout << "Bellman-Ford fonte unica (10 rodadas): nao executado porque o grafo possui ciclo negativo alcancavel\n";
+        } else {
+            auto bfStart = std::chrono::high_resolution_clock::now();
+            for (int round = 0; round < rounds; ++round) {
+                BellmanFordResult bf = bellmanFordQueue(graph, 10);
+                (void)bf;
+            }
+            auto bfEnd = std::chrono::high_resolution_clock::now();
+            double bfSeconds = std::chrono::duration<double>(bfEnd - bfStart).count();
+            bfSourcePerRound = bfSeconds / rounds;
+            std::cout << "Bellman-Ford fonte unica (10 rodadas): "
+                      << bfSourcePerRound << " s/rodada\n";
+        }
+
+        auto bfAllStart = std::chrono::high_resolution_clock::now();
+        if (!bfToTarget.hasNegativeCycle && n <= 1000) {
             for (int round = 0; round < rounds; ++round) {
                 for (int source = 1; source <= n; ++source) {
                     BellmanFordResult bf = bellmanFordQueue(graph, source);
@@ -332,35 +340,28 @@ void runPart3Study(const std::string& filename) {
                 }
             }
         }
-        auto bfEnd = std::chrono::high_resolution_clock::now();
-        if (n <= bfNodeLimit) {
-            bfSeconds = std::chrono::duration<double>(bfEnd - bfStart).count();
-        }
-
-        double fwSeconds = -1.0;
-        if (n <= static_cast<int>(floydNodeLimit)) {
-            auto fwStart = std::chrono::high_resolution_clock::now();
-            for (int round = 0; round < rounds; ++round) {
-                FloydWarshallResult fw = floydWarshall(graph);
-                (void)fw;
-            }
-            auto fwEnd = std::chrono::high_resolution_clock::now();
-            fwSeconds = std::chrono::duration<double>(fwEnd - fwStart).count();
-        }
-
-        if (bfSeconds < 0.0) {
-            std::cout << "Bellman-Ford todos os pares (10 rodadas): nao executado porque "
-                      << n << " fontes excedem o limite viavel desta maquina (" << bfNodeLimit << ")\n";
-        } else {
+        auto bfAllEnd = std::chrono::high_resolution_clock::now();
+        if (n <= 1000 && !bfToTarget.hasNegativeCycle) {
             std::cout << "Bellman-Ford todos os pares (10 rodadas): "
-                      << bfSeconds / rounds << " s/rodada\n";
-        }
-        if (fwSeconds < 0.0) {
-            std::cout << "Floyd-Warshall (10 rodadas): nao executado por limite de memoria\n";
+                      << std::chrono::duration<double>(bfAllEnd - bfAllStart).count() / rounds
+                      << " s/rodada\n";
+        } else if (bfToTarget.hasNegativeCycle) {
+            std::cout << "Bellman-Ford todos os pares (10 rodadas): nao aplicavel devido a ciclo negativo alcancavel\n";
         } else {
-            std::cout << "Floyd-Warshall (10 rodadas): "
-                      << fwSeconds / rounds << " s/rodada\n";
+            std::cout << "Bellman-Ford todos os pares (10 rodadas): estimativa teorica "
+                      << bfSourcePerRound * n << " s/rodada (V=" << n
+                      << ", baseada em uma fonte unica medida)\n";
         }
+
+        auto fwStart = std::chrono::high_resolution_clock::now();
+        for (int round = 0; round < rounds; ++round) {
+            FloydWarshallResult fw = floydWarshall(graph, targets);
+            (void)fw;
+        }
+        auto fwEnd = std::chrono::high_resolution_clock::now();
+        std::cout << "Floyd-Warshall subgrafo de 5 vertices (10 rodadas): "
+                  << std::chrono::duration<double>(fwEnd - fwStart).count() / rounds
+                  << " s/rodada\n";
     } catch (const std::exception& error) {
         std::cout << "[ERRO] " << error.what() << "\n";
     }
@@ -395,15 +396,16 @@ int main(int argc, char* argv[]) {
                 const std::string filepath = resolveDataPath(arg);
                 CSRGraph graph(filepath, true, true);
                 int n = graph.numVertices();
+                CSRGraph transposed = graph.transposed();
+                BellmanFordResult bfToTarget = bellmanFordQueue(transposed, 100);
                 for (int source : {10, 20, 30}) {
                     if (source > n || 100 > n) {
                         std::cout << "BF " << source << " -> 100: vertices fora deste grafo\n";
                         continue;
                     }
-                    BellmanFordResult bf = bellmanFordQueue(graph, source);
                     std::cout << "BF " << source << " -> 100: ";
-                    if (bf.hasNegativeCycle) std::cout << "ciclo negativo";
-                    else std::cout << (std::isinf(bf.dist[100]) ? "Inalcancavel" : std::to_string(bf.dist[100]));
+                    if (bfToTarget.hasNegativeCycle) std::cout << "ciclo negativo";
+                    else std::cout << (std::isinf(bfToTarget.dist[source]) ? "Inalcancavel" : std::to_string(bfToTarget.dist[source]));
                     std::cout << "\n";
                 }
                 if (n <= 1000) {

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <utility>
 #include <deque>
+#include <cmath>
 
 namespace {
 
@@ -291,7 +292,6 @@ BellmanFordResult runBellmanFordQueue(const Graph& g, int source) {
 
     std::deque<int> queue;
     std::vector<unsigned char> inQueue(n + 1, 0);
-    std::vector<int> relaxCount(n + 1, 0);
     queue.push_back(source);
     inQueue[source] = 1;
 
@@ -307,13 +307,25 @@ BellmanFordResult runBellmanFordQueue(const Graph& g, int source) {
             if (candidate < result.dist[v]) {
                 result.dist[v] = candidate;
                 result.parent[v] = u;
+                // A cadeia de pais detecta o ciclo sem esperar V re-enqueues.
+                int cur = u;
+                bool cycleDetected = false;
+                for (int step = 0; step < n; ++step) {
+                    if (cur == 0) break;
+                    if (cur == v) {
+                        cycleDetected = true;
+                        break;
+                    }
+                    cur = result.parent[cur];
+                }
+                if (cycleDetected) {
+                    result.hasNegativeCycle = true;
+                    return result;
+                }
+
                 if (!inQueue[v]) {
                     queue.push_back(v);
                     inQueue[v] = 1;
-                    if (++relaxCount[v] >= n) {
-                        result.hasNegativeCycle = true;
-                        return result;
-                    }
                 }
             }
         }
@@ -325,12 +337,12 @@ FloydWarshallResult runFloydWarshall(const Graph& g) {
     const int n = g.numVertices();
     FloydWarshallResult result;
     result.numVertices = n;
-    result.dist.assign(static_cast<size_t>(n + 1) * (n + 1), INF);
+    result.dist.assign(static_cast<size_t>(n + 1) * (n + 1), std::numeric_limits<float>::infinity());
     result.next.assign(static_cast<size_t>(n + 1) * (n + 1), 0);
 
     auto index = [n](int u, int v) -> size_t { return static_cast<size_t>(u) * (n + 1) + v; };
     for (int u = 1; u <= n; ++u) {
-        result.dist[index(u, u)] = 0.0;
+        result.dist[index(u, u)] = 0.0f;
         result.next[index(u, u)] = u;
         for (int k = 0; k < g.degree(u); ++k) {
             int v = g.neighborsBegin(u)[k];
@@ -347,10 +359,10 @@ FloydWarshallResult runFloydWarshall(const Graph& g) {
     for (int k = 1; k <= n; ++k) {
         for (int i = 1; i <= n; ++i) {
             size_t ik = index(i, k);
-            if (result.dist[ik] == INF) continue;
+            if (std::isinf(result.dist[ik])) continue;
             for (int j = 1; j <= n; ++j) {
                 size_t kj = index(k, j);
-                if (result.dist[kj] == INF) continue;
+                if (std::isinf(result.dist[kj])) continue;
                 size_t ij = index(i, j);
                 double candidate = result.dist[ik] + result.dist[kj];
                 if (candidate < result.dist[ij]) {
@@ -388,6 +400,128 @@ BellmanFordResult bellmanFordQueue(const Graph& g, int source) {
 
 FloydWarshallResult floydWarshall(const Graph& g) {
     return runFloydWarshall(g);
+}
+
+FloydWarshallResult floydWarshall(const Graph& g, const std::vector<int>& vertices) {
+    const int k = static_cast<int>(vertices.size());
+    FloydWarshallResult result;
+    result.numVertices = k;
+    result.dist.assign(static_cast<size_t>(k + 1) * (k + 1), std::numeric_limits<float>::infinity());
+    result.next.assign(static_cast<size_t>(k + 1) * (k + 1), 0);
+
+    std::vector<int> original(k + 1, 0);
+    std::vector<int> local(g.numVertices() + 1, 0);
+    for (int i = 1; i <= k; ++i) {
+        original[i] = vertices[i - 1];
+        local[vertices[i - 1]] = i;
+        result.dist[static_cast<size_t>(i) * (k + 1) + i] = 0.0;
+        result.next[static_cast<size_t>(i) * (k + 1) + i] = i;
+    }
+
+    auto index = [k](int i, int j) -> size_t {
+        return static_cast<size_t>(i) * (k + 1) + j;
+    };
+
+    for (int i = 1; i <= k; ++i) {
+        int u = original[i];
+        for (int edge = 0; edge < g.degree(u); ++edge) {
+            int vOriginal = g.neighborsBegin(u)[edge];
+            int j = local[vOriginal];
+            if (j == 0) continue;
+            double w = g.edgeWeight(u, edge);
+            size_t pos = index(i, j);
+            if (w < result.dist[pos]) {
+                result.dist[pos] = w;
+                result.next[pos] = j;
+            }
+        }
+    }
+
+    for (int middle = 1; middle <= k; ++middle) {
+        for (int i = 1; i <= k; ++i) {
+            size_t im = index(i, middle);
+            if (std::isinf(result.dist[im])) continue;
+            for (int j = 1; j <= k; ++j) {
+                size_t mj = index(middle, j);
+                if (std::isinf(result.dist[mj])) continue;
+                size_t ij = index(i, j);
+                double candidate = result.dist[im] + result.dist[mj];
+                if (candidate < result.dist[ij]) {
+                    result.dist[ij] = candidate;
+                    result.next[ij] = result.next[im];
+                }
+            }
+        }
+    }
+
+    for (int i = 1; i <= k; ++i) {
+        if (result.dist[index(i, i)] < 0.0) {
+            result.hasNegativeCycle = true;
+            break;
+        }
+    }
+    return result;
+}
+
+BreadthSearchResult bfs(const Graph& g, int source) {
+    BreadthSearchResult result;
+    const int n = g.numVertices();
+    result.parent.assign(n + 1, 0);
+    result.distance.assign(n + 1, -1);
+    if (source < 1 || source > n) return result;
+
+    std::deque<int> queue;
+    result.distance[source] = 0;
+    queue.push_back(source);
+    while (!queue.empty()) {
+        int u = queue.front();
+        queue.pop_front();
+        for (int k = 0; k < g.degree(u); ++k) {
+            int v = g.neighborsBegin(u)[k];
+            if (result.distance[v] == -1) {
+                result.distance[v] = result.distance[u] + 1;
+                result.parent[v] = u;
+                queue.push_back(v);
+            }
+        }
+    }
+    return result;
+}
+
+DepthSearchResult dfs(const Graph& g, int source) {
+    DepthSearchResult result;
+    const int n = g.numVertices();
+    result.parent.assign(n + 1, 0);
+    result.discovery.assign(n + 1, 0);
+    result.finish.assign(n + 1, 0);
+    if (source < 1 || source > n) return result;
+
+    std::vector<unsigned char> visited(n + 1, 0);
+    int time = 0;
+    std::vector<int> stack = {source};
+    visited[source] = 1;
+    result.discovery[source] = ++time;
+
+    while (!stack.empty()) {
+        int u = stack.back();
+        bool pushed = false;
+        for (int k = 0; k < g.degree(u); ++k) {
+            int v = g.neighborsBegin(u)[k];
+            if (!visited[v]) {
+                visited[v] = 1;
+                result.parent[v] = u;
+                result.discovery[v] = ++time;
+                stack.push_back(v);
+                pushed = true;
+                break;
+            }
+        }
+        if (!pushed) {
+            result.finish[u] = ++time;
+            stack.pop_back();
+        }
+    }
+    return result;
 }
 
 ShortestPathResult dijkstra(const Graph& g, int source, DijkstraMode mode) {
@@ -457,7 +591,7 @@ std::vector<int> reconstructPath(const FloydWarshallResult& res, int source, int
         source > res.numVertices || target > res.numVertices) return {};
 
     size_t pos = static_cast<size_t>(source) * (res.numVertices + 1) + target;
-    if (res.dist[pos] == INF) return {};
+    if (std::isinf(res.dist[pos])) return {};
 
     std::vector<int> path = {source};
     int cur = source;

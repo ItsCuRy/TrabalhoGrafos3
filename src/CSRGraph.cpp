@@ -173,6 +173,18 @@ bool CSRGraph::isDirected() const {
     return directed_;
 }
 
+CSRGraph CSRGraph::transposed() const {
+    std::vector<std::tuple<int, int, float>> reversed;
+    reversed.reserve(static_cast<size_t>(m_) * 2);
+    for (int u = 1; u <= n_; ++u) {
+        for (int k = 0; k < degree(u); ++k) {
+            int v = neighborsBegin(u)[k];
+            reversed.emplace_back(v, u, edgeWeight(u, k));
+        }
+    }
+    return CSRGraph(n_, reversed, true);
+}
+
 bool CSRGraph::hasNegativeWeight() const {
     return has_negative_;
 }
