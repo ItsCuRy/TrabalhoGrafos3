@@ -197,14 +197,17 @@ No grafo W1 real, uma consulta a partir do vertice 10 detectou ciclo negativo al
 CORRECOES DA AUDITORIA
 - A consulta 10/20/30 -> 100 usa uma unica execucao de Bellman-Ford no grafo transposto a partir do vertice 100.
 - Os benchmarks medem uma fonte unica 10 vezes, o Floyd do subgrafo 10 vezes e indicam o custo teórico ou limite do BF todos os pares.
-- O Floyd completo foi substituido nos estudos de caso pelo Floyd induzido pelos vertices 10,20,30,40,50, conforme os pares pedidos.
+- O Floyd completo foi substituido nos estudos de caso pelo Floyd sobre o subgrafo induzido dos primeiros 1000 vertices, que inclui todos os pares 10,20,30,40,50 e preserva arestas intermediarias entre eles.
 - BFS e DFS direcionadas foram adicionadas e testadas para grafos direcionados.
 - Bellman-Ford fonte unica mede uma origem em 10 rodadas. Para grafo com V vertices, BF todos os pares e estimado por V * tempo-fonte apenas como estimativa, pois sua execucao completa pode ser inviavel.
 - Floyd-Warshall mede apenas os pares formados por 10,20,30,40,50, como exige o Item 2. A matriz completa nao e criada automaticamente.
 - A matriz Floyd usa float para distancias e int para next, reduzindo memoria em relacao a distancias double.
 - A detecção de ciclo negativo no BF por fila usa a cadeia de predecessores em vez de aguardar V re-insercoes.
 - O teste direcionado confirma transposto, Floyd subgrafo, BFS e DFS; CTest passou apos estas correcoes.
-- W1 confirmou ciclo negativo. W2 e W3 tiveram distancias completas geradas. W4 foi interrompido antes de conclusao por tempo pratico; W5 nao foi executado nesta rodada.
+- W1 confirmou ciclo negativo alcancavel nas consultas a 100. W2 apresentou distancias 10.47, 8.48 e 8.71; W3 apresentou 4.63, 5.42 e 4.67; W4 apresentou 9.04, 8.83 e 9.23; W5 apresentou 37.85, 42.63 e 37.86. Os tempos fonte unica medidos foram 0.0236241 s, 0.242549 s, 6.69436 s e 22.6695 s para W2-W5, respectivamente.
+- Os BF todos os pares foram estimados por multiplicacao do tempo fonte unica pela quantidade de vertices: 590.603 s em W2, 24254.9 s em W3, 6.69436e6 s em W4 e 2.26695e8 s em W5. W1 nao teve estimativa valida por possuir ciclo negativo.
+- Floyd executado no subgrafo de 1000 vertices mediu 0.00402756 s em W1, 0.00593676 s em W2, 0.00509809 s em W3, 0.00197154 s em W4 e 0.0230726 s em W5, em media por rodada de 10 execucoes.
+- Como o Floyd foi executado sobre o subgrafo induzido dos primeiros 1000 vertices, os resultados dos pares nao representam necessariamente caminhos no grafo completo. Os pares apareceram inalcançaveis nessa reducao quando nao havia caminho restrito ao subgrafo.
 
 RESUMO
 A implementacao contempla representacao direcionada, duas variantes de Bellman-Ford, Floyd-Warshall achatado, ciclo negativo e caminhos reconstruidos. As partes de pesquisa exata dos algoritmos foram implementadas. Os limites altos em BF-todos-os-pares e Floyd foram inseridos para impedir alocacoes e execucoes inviaveis em uma maquina pessoal; a ausencia de medida em grafos grandes deve ser registrada como limite pratico no relatorio, nao como ausencia dos algoritmos.

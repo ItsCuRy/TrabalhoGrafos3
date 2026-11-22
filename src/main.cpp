@@ -297,16 +297,23 @@ void runPart3Study(const std::string& filename) {
 
         std::cout << "\n[3/4] Floyd-Warshall: pares entre {10,20,30,40,50}\n";
         const std::vector<int> targets = {10, 20, 30, 40, 50};
-        FloydWarshallResult fw = floydWarshall(graph, targets);
-        if (fw.hasNegativeCycle) {
-            std::cout << "Ciclo negativo alcancavel detectado no subgrafo solicitado.\n";
+        constexpr int subgraphSize = 1000;
+        std::vector<int> subgraphVertices;
+        subgraphVertices.reserve(subgraphSize);
+        for (int v = 1; v <= subgraphSize; ++v) {
+            subgraphVertices.push_back(v);
         }
-        for (int i = 1; i <= 5; ++i) {
-            for (int j = 1; j <= 5; ++j) {
-                if (i == j) continue;
-                size_t pos = static_cast<size_t>(i) * 6 + j;
-                double distance = fw.dist[pos];
-                std::cout << targets[i - 1] << " -> " << targets[j - 1] << ": "
+
+        FloydWarshallResult fw = floydWarshall(graph, subgraphVertices);
+        if (fw.hasNegativeCycle) {
+            std::cout << "Ciclo negativo alcancavel detectado no subgrafo de 1000 vertices.\n";
+        }
+        for (int source : targets) {
+            for (int target : targets) {
+                if (source == target) continue;
+                size_t pos = static_cast<size_t>(source) * (subgraphSize + 1) + target;
+                float distance = fw.dist[pos];
+                std::cout << source << " -> " << target << ": "
                           << (std::isinf(distance) ? "Inalcancavel" : std::to_string(distance))
                           << "\n";
             }
@@ -355,11 +362,11 @@ void runPart3Study(const std::string& filename) {
 
         auto fwStart = std::chrono::high_resolution_clock::now();
         for (int round = 0; round < rounds; ++round) {
-            FloydWarshallResult fw = floydWarshall(graph, targets);
+            FloydWarshallResult fw = floydWarshall(graph, subgraphVertices);
             (void)fw;
         }
         auto fwEnd = std::chrono::high_resolution_clock::now();
-        std::cout << "Floyd-Warshall subgrafo de 5 vertices (10 rodadas): "
+        std::cout << "Floyd-Warshall subgrafo de 1000 vertices (10 rodadas): "
                   << std::chrono::duration<double>(fwEnd - fwStart).count() / rounds
                   << " s/rodada\n";
     } catch (const std::exception& error) {
