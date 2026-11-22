@@ -52,3 +52,4 @@ para as operações `O(V^3)`.
 - `tests/test_grafo.cpp`: testes em memória de Dijkstra, direção, Bellman-Ford e Floyd-Warshall.
 - `scripts/run_estudos.sh`: compilação, testes e execução dos estudos de caso.
 - `docs/`: relatório e apresentação do trabalho.
+
