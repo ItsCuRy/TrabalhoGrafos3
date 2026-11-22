@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Script de Automação dos Estudos de Caso — Teoria dos Grafos (COS 242 - Parte 2)
+# Script de Automação dos Estudos de Caso — Teoria dos Grafos (COS 242)
 # ==============================================================================
 # Como usar:
 #   chmod +x scripts/run_estudos.sh
-#   ./scripts/run_estudos.sh
+#   ./scripts/run_estudos.sh parte2
+#   ./scripts/run_estudos.sh parte3
 # ==============================================================================
 
 set -euo pipefail
 
+MODE="${1:-parte3}"
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${ROOT_DIR}/build"
 DATA_DIR="${ROOT_DIR}/data"
-RESULTS_FILE="${ROOT_DIR}/resultados_parte2.txt"
+RESULTS_FILE="${ROOT_DIR}/resultados_${MODE}.txt"
 
 echo "[1/3] Compilando a biblioteca e executaveis em modo Release (-O3)..."
 mkdir -p "${BUILD_DIR}"
@@ -27,7 +30,7 @@ else
     echo "[AVISO] Executavel test_grafo nao encontrado. Pulando testes..."
 fi
 
-echo "[3/3] Iniciando Estudos de Caso da Parte 2..."
+echo "[3/3] Iniciando Estudos de Caso da ${MODE}..."
 echo "Resultados gerados em $(date)" > "${RESULTS_FILE}"
 
 # Executavel principal gerado pelo CMake.
@@ -38,24 +41,31 @@ if [[ ! -f "${GRAFO_BIN}" ]]; then
     exit 1
 fi
 
-# Executa o estudo da Rede de Colaboração caso os arquivos estejam em data/
-if [[ -f "${DATA_DIR}/rede_colaboracao.txt" && -f "${DATA_DIR}/rede_colaboracao_vertices.txt" ]]; then
-    echo "Processando Rede de Colaboracao..."
-    echo "--- REDE DE COLABORACAO ---" >> "${RESULTS_FILE}"
-
-    "${GRAFO_BIN}" colaboracao 2>&1 | tee -a "${RESULTS_FILE}"
-fi
-
-# Executa para cada grafo ponderado encontrado em data/grafo_W_*.txt
-for gfile in "${DATA_DIR}"/grafo_W_*.txt; do
-    if [[ -f "${gfile}" ]]; then
-        echo "Processando ${gfile}..."
-        echo "--- GRAFO: $(basename "${gfile}") ---" >> "${RESULTS_FILE}"
-
-        "${GRAFO_BIN}" "${gfile}" 2>&1 | tee -a "${RESULTS_FILE}"
-
-        echo "" >> "${RESULTS_FILE}"
+if [[ "${MODE}" == "parte3" ]]; then
+    echo "Executando estudos direcionados da Parte 3..."
+    "${GRAFO_BIN}" parte3 2>&1 | tee -a "${RESULTS_FILE}"
+else
+    if [[ "${MODE}" != "parte2" ]]; then
+        echo "[ERRO] Modo desconhecido: ${MODE}. Use parte2 ou parte3."
+        exit 1
     fi
-done
+
+    # Executa o estudo da Rede de Colaboração caso os arquivos estejam em data/
+    if [[ -f "${DATA_DIR}/rede_colaboracao.txt" && -f "${DATA_DIR}/rede_colaboracao_vertices.txt" ]]; then
+        echo "Processando Rede de Colaboracao..."
+        echo "--- REDE DE COLABORACAO ---" >> "${RESULTS_FILE}"
+        "${GRAFO_BIN}" colaboracao 2>&1 | tee -a "${RESULTS_FILE}"
+    fi
+
+    # Executa para cada grafo ponderado encontrado em data/grafo_W_*.txt
+    for gfile in "${DATA_DIR}"/grafo_W_*.txt; do
+        if [[ -f "${gfile}" ]]; then
+            echo "Processando ${gfile}..."
+            echo "--- GRAFO: $(basename "${gfile}") ---" >> "${RESULTS_FILE}"
+            "${GRAFO_BIN}" "${gfile}" 2>&1 | tee -a "${RESULTS_FILE}"
+            echo "" >> "${RESULTS_FILE}"
+        fi
+    done
+fi
 
 echo "Concluido! Todos os resultados foram salvos em: ${RESULTS_FILE}"

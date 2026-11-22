@@ -16,9 +16,10 @@
  */
 class CSRGraph : public Graph {
 private:
-    int n_ = 0;                      ///< Número de vértices
-    long long m_ = 0;                ///< Número de arestas não-direcionadas
-    bool weighted_ = true;           ///< Flag indicando se o grafo é ponderado
+    int n_ = 0;
+    long long m_ = 0;
+    bool weighted_ = true;
+    bool directed_ = false;
     bool has_negative_ = false;      ///< Flag indicando presença de peso negativo
 
     /**
@@ -39,22 +40,26 @@ public:
      * @param filename Caminho para o arquivo (formato: linha 1 = N; demais linhas = u v [w]).
      * @param weighted Se true, lê a terceira coluna como peso (float).
      */
-    explicit CSRGraph(const std::string& filename, bool weighted = true);
+    explicit CSRGraph(const std::string& filename, bool weighted = true,
+                      bool directed = false);
 
     /**
      * @brief Construtor em memória para grafos não-ponderados (útil para testes).
      */
-    CSRGraph(int n, const std::vector<std::pair<int, int>>& edges);
+    CSRGraph(int n, const std::vector<std::pair<int, int>>& edges,
+             bool directed = false);
 
     /**
      * @brief Construtor em memória para grafos ponderados (útil para testes unitários).
      */
-    CSRGraph(int n, const std::vector<std::tuple<int, int, float>>& weighted_edges);
+    CSRGraph(int n, const std::vector<std::tuple<int, int, float>>& weighted_edges,
+             bool directed = false);
 
     // Implementações da interface Graph
     int numVertices() const override;
     long long numEdges() const override;
     bool isWeighted() const override;
+    bool isDirected() const override;
     bool hasNegativeWeight() const override;
     int degree(int u) const override;
     const int* neighborsBegin(int u) const override;

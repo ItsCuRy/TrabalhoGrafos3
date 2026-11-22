@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <algorithm>
 #include <utility>
+#include <deque>
 
 namespace {
 
@@ -239,7 +240,155 @@ void validateDijkstraInput(const Graph& g, int source) {
     }
 }
 
+BellmanFordResult runBellmanFord(const Graph& g, int source) {
+
+    BellmanFordResult result;
+    const int n = g.numVertices();
+    result.dist.assign(n + 1, INF);
+    result.parent.assign(n + 1, 0);
+    result.dist[source] = 0.0;
+
+    // In-place: the maximum distance length is n-1 arcs. An early exit avoids V passes
+    // when no relaxation changed in one pass.
+    for (int iteration = 1; iteration < n; ++iteration) {
+        bool changed = false;
+        for (int u = 1; u <= n; ++u) {
+            if (result.dist[u] == INF) continue;
+            for (int k = 0; k < g.degree(u); ++k) {
+                int v = g.neighborsBegin(u)[k];
+                double candidate = result.dist[u] + g.edgeWeight(u, k);
+                if (candidate < result.dist[v]) {
+                    result.dist[v] = candidate;
+                    result.parent[v] = u;
+                    changed = true;
+                }
+            }
+        }
+        if (!changed) break;
+    }
+
+    // A distance update after n-1 passes proves that a reachable negative cycle exists.
+    for (int u = 1; u <= n; ++u) {
+        if (result.dist[u] == INF) continue;
+        for (int k = 0; k < g.degree(u); ++k) {
+            int v = g.neighborsBegin(u)[k];
+            if (result.dist[u] + g.edgeWeight(u, k) < result.dist[v]) {
+                result.hasNegativeCycle = true;
+                return result;
+            }
+        }
+    }
+    return result;
+}
+
+BellmanFordResult runBellmanFordQueue(const Graph& g, int source) {
+
+    BellmanFordResult result;
+    const int n = g.numVertices();
+    result.dist.assign(n + 1, INF);
+    result.parent.assign(n + 1, 0);
+    result.dist[source] = 0.0;
+
+    std::deque<int> queue;
+    std::vector<unsigned char> inQueue(n + 1, 0);
+    std::vector<int> relaxCount(n + 1, 0);
+    queue.push_back(source);
+    inQueue[source] = 1;
+
+    // Otimizacao por fila: cada vertice entra apenas quando uma distancia melhora.
+    while (!queue.empty()) {
+        int u = queue.front();
+        queue.pop_front();
+        inQueue[u] = 0;
+
+        for (int k = 0; k < g.degree(u); ++k) {
+            int v = g.neighborsBegin(u)[k];
+            double candidate = result.dist[u] + g.edgeWeight(u, k);
+            if (candidate < result.dist[v]) {
+                result.dist[v] = candidate;
+                result.parent[v] = u;
+                if (!inQueue[v]) {
+                    queue.push_back(v);
+                    inQueue[v] = 1;
+                    if (++relaxCount[v] >= n) {
+                        result.hasNegativeCycle = true;
+                        return result;
+                    }
+                }
+            }
+        }
+    }
+    return result;
+}
+
+FloydWarshallResult runFloydWarshall(const Graph& g) {
+    const int n = g.numVertices();
+    FloydWarshallResult result;
+    result.numVertices = n;
+    result.dist.assign(static_cast<size_t>(n + 1) * (n + 1), INF);
+    result.next.assign(static_cast<size_t>(n + 1) * (n + 1), 0);
+
+    auto index = [n](int u, int v) -> size_t { return static_cast<size_t>(u) * (n + 1) + v; };
+    for (int u = 1; u <= n; ++u) {
+        result.dist[index(u, u)] = 0.0;
+        result.next[index(u, u)] = u;
+        for (int k = 0; k < g.degree(u); ++k) {
+            int v = g.neighborsBegin(u)[k];
+            double w = g.edgeWeight(u, k);
+            size_t pos = index(u, v);
+            if (w < result.dist[pos]) {
+                result.dist[pos] = w;
+                result.next[pos] = v;
+            }
+        }
+    }
+
+    // One-dimensional matrices reduce the auxiliary memory relative to two separate matrices.
+    for (int k = 1; k <= n; ++k) {
+        for (int i = 1; i <= n; ++i) {
+            size_t ik = index(i, k);
+            if (result.dist[ik] == INF) continue;
+            for (int j = 1; j <= n; ++j) {
+                size_t kj = index(k, j);
+                if (result.dist[kj] == INF) continue;
+                size_t ij = index(i, j);
+                double candidate = result.dist[ik] + result.dist[kj];
+                if (candidate < result.dist[ij]) {
+                    result.dist[ij] = candidate;
+                    result.next[ij] = result.next[ik];
+                }
+            }
+        }
+    }
+
+    for (int v = 1; v <= n; ++v) {
+        if (result.dist[index(v, v)] < 0.0) {
+            result.hasNegativeCycle = true;
+            break;
+        }
+    }
+    return result;
+}
+
 } // namespace
+
+BellmanFordResult bellmanFord(const Graph& g, int source) {
+    if (source < 1 || source > g.numVertices()) {
+        throw std::out_of_range("Vertice de origem fora do intervalo [1, n].");
+    }
+    return runBellmanFord(g, source);
+}
+
+BellmanFordResult bellmanFordQueue(const Graph& g, int source) {
+    if (source < 1 || source > g.numVertices()) {
+        throw std::out_of_range("Vertice de origem fora do intervalo [1, n].");
+    }
+    return runBellmanFordQueue(g, source);
+}
+
+FloydWarshallResult floydWarshall(const Graph& g) {
+    return runFloydWarshall(g);
+}
 
 ShortestPathResult dijkstra(const Graph& g, int source, DijkstraMode mode) {
     validateDijkstraInput(g, source);
@@ -285,5 +434,40 @@ std::vector<int> reconstructPath(const ShortestPathResult& res, int source, int 
     }
 
     std::reverse(path.begin(), path.end());
+    return path;
+}
+
+std::vector<int> reconstructPath(const BellmanFordResult& res, int source, int target) {
+    if (res.hasNegativeCycle || target < 1 || target >= static_cast<int>(res.dist.size()) ||
+        res.dist[target] == INF) return {};
+
+    std::vector<int> path;
+    for (int cur = target; cur != 0; cur = res.parent[cur]) {
+        path.push_back(cur);
+        if (cur == source) break;
+        if (static_cast<int>(path.size()) > static_cast<int>(res.dist.size())) return {};
+    }
+    if (path.empty() || path.back() != source) return {};
+    std::reverse(path.begin(), path.end());
+    return path;
+}
+
+std::vector<int> reconstructPath(const FloydWarshallResult& res, int source, int target) {
+    if (res.hasNegativeCycle || source < 1 || target < 1 ||
+        source > res.numVertices || target > res.numVertices) return {};
+
+    size_t pos = static_cast<size_t>(source) * (res.numVertices + 1) + target;
+    if (res.dist[pos] == INF) return {};
+
+    std::vector<int> path = {source};
+    int cur = source;
+    while (cur != target) {
+        pos = static_cast<size_t>(cur) * (res.numVertices + 1) + target;
+        int next = res.next[pos];
+        if (next == 0) return {};
+        cur = next;
+        path.push_back(cur);
+        if (static_cast<int>(path.size()) > res.numVertices) return {};
+    }
     return path;
 }

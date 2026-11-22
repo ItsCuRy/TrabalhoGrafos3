@@ -263,24 +263,166 @@ void runCollaborationStudy() {
     std::cout << "--------------------------------------------------------------------\n";
 }
 
+void runPart3Study(const std::string& filename) {
+    const std::string filepath = resolveDataPath(filename);
+    std::cout << "\n====================================================================\n";
+    std::cout << "  ESTUDO DE CASO - PARTE 3: " << filename << "\n";
+    std::cout << "====================================================================\n";
+
+    if (!fs::exists(filepath)) {
+        std::cout << "[AVISO] Arquivo nao encontrado: " << filepath << "\n";
+        return;
+    }
+
+    try {
+        std::cout << "[1/4] Carregando grafo direcionado: " << filepath << "\n";
+        CSRGraph graph(filepath, true, true);
+        const int n = graph.numVertices();
+        std::cout << "Vertices (V): " << n << " | Arestas (E): " << graph.numEdges()
+                  << " | Pesos negativos: " << (graph.hasNegativeWeight() ? "sim" : "nao") << "\n";
+
+        std::cout << "\n[2/4] Bellman-Ford: vertices 10, 20 e 30 ate 100\n";
+        for (int source : {10, 20, 30}) {
+            BellmanFordResult bf = bellmanFordQueue(graph, source);
+            if (bf.hasNegativeCycle) {
+                std::cout << source << " -> 100: ciclo negativo alcancavel\n";
+            } else {
+                double distance = bf.dist[100];
+                std::cout << source << " -> 100: "
+                          << (std::isinf(distance) ? "Inalcancavel" : std::to_string(distance))
+                          << "\n";
+            }
+        }
+
+        std::cout << "\n[3/4] Floyd-Warshall: pares entre {10,20,30,40,50}\n";
+        const std::vector<int> targets = {10, 20, 30, 40, 50};
+        constexpr size_t floydNodeLimit = 1000;
+        if (n > static_cast<int>(floydNodeLimit)) {
+            std::cout << "Floyd-Warshall nao executado: " << n
+                      << " vertices excedem o limite viavel de " << floydNodeLimit
+                      << " para os estudos desta maquina.\n";
+        } else {
+            FloydWarshallResult fw = floydWarshall(graph);
+            if (fw.hasNegativeCycle) {
+                std::cout << "Ciclo negativo alcancavel detectado.\n";
+            }
+            for (int source : targets) {
+                for (int target : targets) {
+                    if (source == target) continue;
+                    size_t pos = static_cast<size_t>(source) * (n + 1) + target;
+                    double distance = fw.dist[pos];
+                    std::cout << source << " -> " << target << ": "
+                              << (std::isinf(distance) ? "Inalcancavel" : std::to_string(distance))
+                              << "\n";
+                }
+            }
+        }
+
+        std::cout << "\n[4/4] Benchmark medio de 10 rodadas\n";
+        constexpr int rounds = 10;
+
+        double bfSeconds = -1.0;
+        constexpr int bfNodeLimit = 1000;
+        auto bfStart = std::chrono::high_resolution_clock::now();
+        if (n <= bfNodeLimit) {
+            for (int round = 0; round < rounds; ++round) {
+                for (int source = 1; source <= n; ++source) {
+                    BellmanFordResult bf = bellmanFordQueue(graph, source);
+                    (void)bf;
+                }
+            }
+        }
+        auto bfEnd = std::chrono::high_resolution_clock::now();
+        if (n <= bfNodeLimit) {
+            bfSeconds = std::chrono::duration<double>(bfEnd - bfStart).count();
+        }
+
+        double fwSeconds = -1.0;
+        if (n <= static_cast<int>(floydNodeLimit)) {
+            auto fwStart = std::chrono::high_resolution_clock::now();
+            for (int round = 0; round < rounds; ++round) {
+                FloydWarshallResult fw = floydWarshall(graph);
+                (void)fw;
+            }
+            auto fwEnd = std::chrono::high_resolution_clock::now();
+            fwSeconds = std::chrono::duration<double>(fwEnd - fwStart).count();
+        }
+
+        if (bfSeconds < 0.0) {
+            std::cout << "Bellman-Ford todos os pares (10 rodadas): nao executado porque "
+                      << n << " fontes excedem o limite viavel desta maquina (" << bfNodeLimit << ")\n";
+        } else {
+            std::cout << "Bellman-Ford todos os pares (10 rodadas): "
+                      << bfSeconds / rounds << " s/rodada\n";
+        }
+        if (fwSeconds < 0.0) {
+            std::cout << "Floyd-Warshall (10 rodadas): nao executado por limite de memoria\n";
+        } else {
+            std::cout << "Floyd-Warshall (10 rodadas): "
+                      << fwSeconds / rounds << " s/rodada\n";
+        }
+    } catch (const std::exception& error) {
+        std::cout << "[ERRO] " << error.what() << "\n";
+    }
+}
+
 int main(int argc, char* argv[]) {
-    // Se o usuário passar um arquivo específico por linha de comando, roda apenas ele
     if (argc > 1) {
         std::string arg = argv[1];
+        if (arg == "parte3") {
+            for (int i = 1; i <= 5; ++i) {
+                runPart3Study("grafo_W_" + std::to_string(i) + ".txt");
+            }
+            return 0;
+        }
         if (arg == "colaboracao") {
             runCollaborationStudy();
         } else {
-            runStandardCaseStudy(arg, 100);
+            bool directed = argc > 2 && std::string(argv[2]) == "--directed";
+            bool forceFloyd = argc > 2 && std::string(argv[2]) == "--force-floyd";
+            if (forceFloyd) {
+                const std::string filepath = resolveDataPath(arg);
+                CSRGraph graph(filepath, true, true);
+                std::cout << "Executando Floyd-Warshall completo sem limite para "
+                          << graph.numVertices() << " vertices...\n";
+                auto start = std::chrono::high_resolution_clock::now();
+                FloydWarshallResult fw = floydWarshall(graph);
+                auto end = std::chrono::high_resolution_clock::now();
+                double seconds = std::chrono::duration<double>(end - start).count();
+                std::cout << "Floyd-Warshall concluido em " << seconds << " s\n";
+                std::cout << "Ciclo negativo=" << fw.hasNegativeCycle << "\n";
+            } else if (directed) {
+                const std::string filepath = resolveDataPath(arg);
+                CSRGraph graph(filepath, true, true);
+                int n = graph.numVertices();
+                for (int source : {10, 20, 30}) {
+                    if (source > n || 100 > n) {
+                        std::cout << "BF " << source << " -> 100: vertices fora deste grafo\n";
+                        continue;
+                    }
+                    BellmanFordResult bf = bellmanFordQueue(graph, source);
+                    std::cout << "BF " << source << " -> 100: ";
+                    if (bf.hasNegativeCycle) std::cout << "ciclo negativo";
+                    else std::cout << (std::isinf(bf.dist[100]) ? "Inalcancavel" : std::to_string(bf.dist[100]));
+                    std::cout << "\n";
+                }
+                if (n <= 1000) {
+                    FloydWarshallResult fw = floydWarshall(graph);
+                    std::cout << "Floyd negativo=" << fw.hasNegativeCycle << "\n";
+                } else {
+                    std::cout << "Floyd-Warshall nao executado: grafo demasiado grande\n";
+                }
+            } else {
+                runStandardCaseStudy(arg, 100);
+            }
         }
         return 0;
     }
 
-    // Execução padrão: processa grafo_W_3.txt até grafo_W_7.txt e a rede de colaboração
-    for (int i = 3; i <= 7; ++i) {
-        runStandardCaseStudy("grafo_W_" + std::to_string(i) + ".txt", 100);
+    // Execução padrão atual: processa os grafos direcionados W1-W5 da Parte 3.
+    for (int i = 1; i <= 5; ++i) {
+        runPart3Study("grafo_W_" + std::to_string(i) + ".txt");
     }
-
-    runCollaborationStudy();
 
     return 0;
 }

@@ -8,7 +8,7 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-# Otimizações de performance para os grafos pesados da Parte 2
+# Otimizações de performance para os grafos pesados das Partes 2 e 3
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -DNDEBUG")
 
 include_directories(include)

@@ -1,0 +1,198 @@
+REGISTRO DE ALTERACOES E CUSTOS - TRABALHO 3
+Projeto: Trabalho de Grafos - COS 242, Parte 3
+
+ESCOPO
+Este registro descreve as alteracoes implementadas para a Parte 3 a partir da base da Parte 2. Ele informa o que existia antes, o custo das implementacoes anteriores ou alternativas, as mudancas feitas e os efeitos em grafos pequenos e grandes.
+
+1. REQUISITOS IDENTIFICADOS
+
+O enunciado da Parte 3 exige:
+- representacao de grafos direcionados com pesos, mantendo lista ou vetor de adjacencias;
+- parametro para escolher grafo direcionado ou nao direcionado;
+- adaptacao das buscas ja implementadas;
+- Bellman-Ford de origem para todos os vertices, incluindo distancias, caminhos minimos e deteccao de ciclo negativo;
+- duas otimizacoes para Bellman-Ford;
+- Floyd-Warshall para todas as distancias e caminhos entre todos os pares;
+- deteccao de ciclo negativo em Floyd-Warshall;
+- otimizacao de memoria em Floyd-Warshall;
+- para cada grafo: distancia dos vertices 10,20,30 para o vertice 100 usando Bellman-Ford;
+- pares entre 10,20,30,40,50 usando Floyd-Warshall;
+- tempo medio de cada algoritmo em 10 rodadas, excluindo leitura/escrita;
+- comparacao de todos os pares feita executando Bellman-Ford para todas as fontes versus Floyd-Warshall.
+
+2. BASE EXISTENTE APOS A PARTE 2
+
+Antes desta implementacao, a biblioteca tinha:
+- CSR para grafos nao direcionados;
+- pesos em float associados as arestas;
+- Dijkstra com vetor e heap indexado;
+- deteccao de peso negativo para Dijkstra;
+- leitura em duas passagens;
+- CLI para os grafos da Parte 2;
+- script separado apenas pelo fluxo parte2, rede e grafos W3-W7.
+
+O arquivo de dados atual foi trocado para o conjunto da Parte 3. Os novos grafos disponiveis sao W1, W2, W3, W4 e W5.
+
+O primeiro custo encontrado foi que a estrutura anterior sempre adicionava a aresta inversa ao montar o CSR. Isso estava correto para grafos nao direcionados, mas produzia arcos artificiais em um grafo direcionado.
+
+3. SUPORTE A GRAFOS DIRECIONADOS
+
+Foi adicionada a flag directed_ em CSRGraph e o metodo Graph::isDirected().
+
+O construtor passou a receber:
+CSRGraph(filename, weighted, directed)
+
+Quando directed=false:
+- para uma aresta u -> v, a estrutura ainda guarda v na lista de u e u na lista de v;
+- preserva o comportamento nao direcionado da Parte 2.
+
+Quando directed=true:
+- so guarda v na lista de u;
+- nao cria nem a aresta inversa nem arcos artificiais;
+- m_ conta as linhas validas do arquivo como arestas direcionadas.
+
+Construtores em memoria tambem receberam directed=false como valor padrao.
+
+4. BELLMAN-FORD
+
+Foi implementada a versao padrao por repetidas varreduras das listas de adjacencia:
+- inicializa todas as distancias como infinito, exceto a origem;
+- executa no maximo V-1 passadas;
+- interrompe cedo se nenhuma distancia melhorar;
+- faz uma passagem final para verificar atualizacao restante;
+- qualquer atualizacao na passagem final indica ciclo negativo alcancavel.
+
+Sem a parada antecipada, o custo seria O(V*E) por fonte. Com a parada antecipada, grafos que estabilizam cedo podem usar menos passadas, mas o limite teorico continua O(V*E). A memoria auxiliar permanece O(V).
+
+Foi implementada tambem a optimizacao por fila:
+- utiliza uma fila de vertices que precisam ser relaxados;
+- um vertice entra na fila somente quando sua distancia melhora;
+- vertices ja presentes nao sao inseridos duplicadamente;
+- guarda uma contagem de insercoes por vertice para detectar um ciclo negativo.
+
+Esta forma possui comportamento potencialmente melhor que a varredura completa em grafos esparsos, mas nao altera o pior caso exato em todas as instancias. Em grafos densos e negativos, continuar com relaxamentos pode ser caro. A estrutura auxilia usa filas, vetores de entrada e contagem: O(V) de memoria.
+
+Ambos os metodos retornam distancias, pais e uma flag hasNegativeCycle. Quando existe ciclo negativo alcancavel, nao existe um conjunto finito de caminhos minimos e as distancias nao podem ser utilizadas como resultado final.
+
+5. FLOYD-WARSHALL
+
+Floyd-Warshall foi implementado com uma matriz unica achatada em um vetor lineares:
+- distancias: O(V^2) em double;
+- proximos vertices para reconstruir caminhos: O(V^2) em int;
+
+Nao foi utilizada uma matriz 3D. A otimizacao de memoria discutida e a matriz achatada mantem apenas dois vetores lineares. As dimensoes sao (V+1)*(V+1) para compatibilidade com numeracao 1-based.
+
+Inicializacao:
+- dist[v,v]=0;
+- next[v,v]=v;
+- arestas direcionadas preencham apenas dist[u,v];
+- aresta paralela nao chega a reduzir dist se a nova distancia nao melhora;
+- pares sem aresta permanecem infinito.
+
+Relacao de recorrencia:
+
+    dist[i,j] = min(dist[i,j], dist[i,k] + dist[k,j])
+
+Custo de tempo: O(V^3).
+Custo de memoria: O(V^2).
+A deteccao de ciclo negativo verifica dist[v,v] < 0 apos as tres passagens de indices.
+
+A matriz unica armazenada em vetor lineares evita overhead de N vetores separados e permite indexacao direta para o caminho reconstruido.
+
+6. RECONSTRUCAO DE CAMINHOS
+
+Foi criada overload de reconstructPath para:
+- Bellman-Ford;
+- Floyd-Warshall.
+
+Bellman-Ford segue o vetor parent do destino ate a origem.
+Floyd-Warshall usa next[source,target] para atravessar um salto por vez ate o destino.
+Ambas retornam vazio quando existe ciclo negativo, destino inalcançavel ou inconsistencia no caminho.
+
+7. IMPLEMENTACAO DA PARTE 3
+
+Foi criada a secao runPart3Study em src/main.cpp.
+
+Para cada grafo ela:
+1. abre o arquivo como direcionado;
+2. informa V, numero de arestas e pesos negativos;
+3. executa Bellman-Ford com fila para os vertices 10,20,30 ate 100;
+4. indica ciclo negativo alcancavel ou distancia infinita;
+5. executa Floyd-Warshall para os pares formados por 10,20,30,40,50, se o grafo cabe no limite seguro;
+6. realiza benchmarks de 10 rodadas.
+
+Bellman-Ford todos os pares mede uma execucao por cada origem no grafo. Cada rodada, portanto, executa V chamadas de Bellman-Ford com fila. O tempo impresso e dividido por 10.
+
+Floyd-Warshall executa a matriz completa dez vezes. Tempo e dividido por 10.
+
+A leitura nao entra no cronometro dos benchmarks.
+
+8. LIMITES PARA GRAFOS GRANDES
+
+Floyd-Warshall nao foi executado acima de 1000 vertices neste modo. Acima desse limite, a matriz dist+next poderia exigir tempo V^3 e memoria O(V^2), tornando o estudo diretamente inviavelo em computadores pessoais.
+
+Bellman-Ford todos os pares tambem nao foi executado acima de 1000 fontes neste modo. Isso evita repetir BF n vezes no mesmo processo quando o custo seria proibitivo.
+
+Os dados novos estao em W1-W5. Os grafos maiores nao devem ter Floyd ou todos os pares realizados automaticamente nesta configuracao. Esse comportamento deve ser informado no relatorio como uma limitacao praticada e nao como omissao do codigo.
+
+As consultas individuais 10/20/30 -> 100 ainda podem ser executadas por Bellman-Ford, independentemente do benchmark todos os pares, pois sao apenas tres fontes.
+
+9. SCRIPT DE ESTUDOS
+
+scripts/run_estudos.sh passou a aceitar um modo:
+
+./scripts/run_estudos.sh parte2
+./scripts/run_estudos.sh parte3
+
+parte2 preserva o fluxo anterior: rede e grafos nao direcionados ponderados.
+parte3 grava em resultados_parte3.txt e chama grafo parte3.
+Modo desconhecido retorna erro.
+
+Comando direto para um grafo:
+./build/grafo grafo_W_1.txt --directed
+
+Comando direto para todos os estudos P3:
+./build/grafo parte3
+
+10. TESTES UNITARIOS
+
+Os testes cobrem:
+- grafo de 4 vertices com uma unica direcao em 1 -> 2;
+- Bellman-Ford com aresta negativa que nao forma ciclo negativo;
+- caminho 1 -> 2 -> 3 -> 4;
+- equivalencia das distancias Floyd-Warshall;
+- grafos desconexos;
+- ciclo negativo na estrutura 1 -> 2 -> 3 -> 2;
+- deteccao pelo BF padrao, BF por fila e Floyd;
+- leitura CSR por arquivo temporario;
+- testes de Dijkstra existentes preservados.
+
+Os testes sao pequenos e verificam corretude, nao medem os custos dos datasets grandes.
+
+11. EFEITOS PRATICOS
+
+Em grafos pequenos:
+- Floyd-Warshall permite conferir todos os pares de forma direta;
+- a matriz linear usa cerca de 16 bytes por entrada se distancias double e proximos int forem considerados separadamente;
+- a reconstrução por next e direta.
+
+Em grafos medios ou grandes:
+- Bellman-Ford por fila tende a evitar passadas globais completas em poucos vertices perturbados;
+- grafos densos, negativos ou com muitas propagacoes ainda podem ser lentos;
+- Floyd-Warshall torna-se inviavel por V^3 e memoria O(V^2);
+- o benchmark todos os pares por Bellman-Ford repete V origens e pode ser muito mais custoso que uma unica chamada.
+
+No conjunto novo, W1 ja mostrou a existencia de peso negativo. Isso exige usar Bellman-Ford em vez de Dijkstra para os estudos direcionados da Parte 3. O W1 pode ter ciclos negativos alcancaveis; nesse caso, o enunciado pede informar a impossibilidade de caminhos minimos definidos por ciclo negativo.
+
+12. RESULTADOS DE VALIDACAO
+
+A build limpa foi concluida com os alvos grafo, test_grafo e grafos_lib.
+Os testes CTest passaram 1/1.
+A sintaxe do script foi validada por bash -n.
+A CLI direcionada em grafos pequenos passou sem abortar.
+O build nao mostrou erros nos arquivos de interface, CSR, algoritmos, main, testes ou script.
+
+No grafo W1 real, uma consulta a partir do vertice 10 detectou ciclo negativo alcancavel e nao apresentou distancia minima finita. A execucao completa por script, if realizada, preservara esse resultado no resultados_parte3.txt.
+
+RESUMO
+A implementacao contempla representacao direcionada, duas variantes de Bellman-Ford, Floyd-Warshall achatado, ciclo negativo e caminhos reconstruidos. As partes de pesquisa exata dos algoritmos foram implementadas. Os limites altos em BF-todos-os-pares e Floyd foram inseridos para impedir alocacoes e execucoes inviaveis em uma maquina pessoal; a ausencia de medida em grafos grandes deve ser registrada como limite pratico no relatorio, nao como ausencia dos algoritmos.

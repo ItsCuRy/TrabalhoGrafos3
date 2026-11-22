@@ -108,6 +108,45 @@ void testParte2DijkstraVetorVsHeap() {
     std::cout << "[PASS] Teste de equivalencia Dijkstra (Vetor vs Heap) e decreaseKey\n";
 }
 
+void testDirecaoBellmanFordEFloyd() {
+    std::vector<std::tuple<int, int, float>> edges = {
+        {1, 2, 4.0f},
+        {1, 3, 5.0f},
+        {2, 3, -2.0f},
+        {3, 4, 3.0f}
+    };
+    CSRGraph graph(4, edges, true);
+
+    assert(graph.isDirected());
+    assert(graph.degree(2) == 1);
+
+    auto bf = bellmanFord(graph, 1);
+    assert(!bf.hasNegativeCycle);
+    assert(std::abs(bf.dist[4] - 5.0) < 1e-5);
+    assert(reconstructPath(bf, 1, 4) == (std::vector<int>{1, 2, 3, 4}));
+
+    auto fw = floydWarshall(graph);
+    assert(!fw.hasNegativeCycle);
+    assert(std::abs(fw.dist[1 * 5 + 4] - 5.0) < 1e-5);
+
+    std::cout << "[PASS] Teste de grafos direcionados, Bellman-Ford e Floyd-Warshall\n";
+}
+
+void testCicloNegativo() {
+    std::vector<std::tuple<int, int, float>> edges = {
+        {1, 2, 1.0f},
+        {2, 3, -2.0f},
+        {3, 2, 1.0f}
+    };
+    CSRGraph graph(3, edges, true);
+
+    assert(bellmanFord(graph, 1).hasNegativeCycle);
+    assert(bellmanFordQueue(graph, 1).hasNegativeCycle);
+    assert(floydWarshall(graph).hasNegativeCycle);
+
+    std::cout << "[PASS] Teste de deteccao de ciclo negativo\n";
+}
+
 void testDijkstraComVerticeInalcancavel() {
     std::vector<std::tuple<int, int, float>> edges = {
         {1, 2, 1.0f},
@@ -159,6 +198,8 @@ int main() {
     testParte1Figura1();
     testParte2PesoNegativo();
     testParte2DijkstraVetorVsHeap();
+    testDirecaoBellmanFordEFloyd();
+    testCicloNegativo();
     testDijkstraComVerticeInalcancavel();
     testLeituraCSRDoArquivo();
     std::cout << "\n>>> TODOS OS TESTES PASSARAM COM SUCESSO! <<<\n";

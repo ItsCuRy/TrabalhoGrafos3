@@ -17,8 +17,21 @@ enum class DijkstraMode {
  * Vetores dimensionados para (n + 1) para acesso direto 1-based.
  */
 struct ShortestPathResult {
-    std::vector<double> dist;  ///< dist[v] = menor distância da origem até v (ou INF)
-    std::vector<int> parent;   ///< parent[v] = predecessor de v na árvore de caminhos mínimos
+    std::vector<double> dist;
+    std::vector<int> parent;
+};
+
+struct BellmanFordResult {
+    std::vector<double> dist;
+    std::vector<int> parent;
+    bool hasNegativeCycle = false;
+};
+
+struct FloydWarshallResult {
+    int numVertices = 0;
+    std::vector<double> dist;
+    std::vector<int> next;
+    bool hasNegativeCycle = false;
 };
 
 /**
@@ -51,3 +64,9 @@ ShortestPathResult dijkstraToTargets(const Graph& g, int source, DijkstraMode mo
  * @return std::vector<int> Sequência de vértices [source, ..., target], ou vazio se inalcançável.
  */
 std::vector<int> reconstructPath(const ShortestPathResult& res, int source, int target);
+
+BellmanFordResult bellmanFord(const Graph& g, int source);
+BellmanFordResult bellmanFordQueue(const Graph& g, int source);
+FloydWarshallResult floydWarshall(const Graph& g);
+std::vector<int> reconstructPath(const BellmanFordResult& res, int source, int target);
+std::vector<int> reconstructPath(const FloydWarshallResult& res, int source, int target);

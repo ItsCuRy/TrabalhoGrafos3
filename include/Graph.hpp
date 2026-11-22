@@ -20,6 +20,9 @@ public:
     /// Indica se o grafo possui pesos associados às arestas.
     virtual bool isWeighted() const = 0;
 
+    /// Indica se as arestas são orientadas.
+    virtual bool isDirected() const = 0;
+
     /// Indica se o grafo contém alguma aresta com peso negativo (w < 0).
     virtual bool hasNegativeWeight() const = 0;
 
