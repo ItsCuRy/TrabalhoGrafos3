@@ -60,7 +60,7 @@
 
 * No Item 3, medimos a média de **10 rodadas** sem contar leitura ou escrita de disco.
 
-* O Bellman-Ford com fila de vértices ativos apresentou: **23,6241 milissegundos** no `W_2`, **0,242549 segundos** no `W_3`, **6,69436 segundos** no `W_4` e **22,6695 segundos** no `W_5`, todos em média por execução da fonte medida. W1 não teve benchmark por conter um ciclo negativo alcançável.
+* O Bellman-Ford com fila de vértices ativos apresentou: **23,6241 milissegundos** no `W_2`, **0,242549 segundos** no `W_3`, **6,69436 segundos** no `W_4` e **22,6695 segundos** no `W_5`, todos em média por execução da fonte medida. `W_1` não teve benchmark por conter um ciclo negativo alcançável.
 
 * No subgrafo de 1.000 vértices, o Floyd-Warshall rodou entre **1,97 ms e 23,07 ms** por rodada, beneficiado pela poda de estados infinitos na matriz esparsa.
 
